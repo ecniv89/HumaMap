@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Photo Heatmap</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+    <style>
+        #map { height: 600px; width: 800px;} /* Increased map size for better visibility */
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <script>
+        const map = L.map('map').setView([44.227778, 12.033056], 13); // Default view (Forli), less zoomed in
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        fetch('photo_data.json')
+            .then(response => response.json())
+            .then(photoData => {
+                if (!photoData || photoData.length === 0) {
+                    console.warn("No photo data found or data is empty. Setting default map view.");
+                    return; // Important: Exit early if no data
+                }
+
+                let maxLikes = 0;
+                photoData.forEach(photo => {
+                    maxLikes = Math.max(maxLikes, photo.likes);
+                });
+
+				const heatmapData = photoData.map(photo => {
+					const normalizedLikes = maxLikes > 0 ? Math.pow(photo.likes / maxLikes, 2) : 0;
+
+					// Calculate radius based on normalized likes
+					const baseRadius = 5;
+					const maxRadiusIncrease = 500; // Maximum radius increase
+					const radius = baseRadius + (normalizedLikes * maxRadiusIncrease);
+
+					return [photo.lat, photo.lng, radius]; // Include radius in the data
+				});
+
+				const heat = L.heatLayer(heatmapData, {
+					blur: 1,
+					gradient: {
+						0.0: 'rgba(255, 0, 0, 0.0)',
+						0.2: 'rgba(255, 0, 0, 0.2)',
+						0.4: 'rgba(255, 0, 0, 0.4)',
+						0.6: 'rgba(255, 0, 0, 0.6)',
+						0.8: 'rgba(255, 0, 0, 0.8)',
+						1.0: 'rgba(255, 0, 0, 1.0)'
+					}
+				}).addTo(map);
+
+                const bounds = L.latLngBounds();
+                heatmapData.forEach(point => { // Use heatmapData here, which is in [lat, lng] format
+                    bounds.extend([point[0], point[1]]); // Correctly extend bounds
+					L.marker([point[0], point[1]]).addTo(map);
+                });
+                map.fitBounds(bounds, { maxZoom: 16 });
+
+            })
+            .catch(error => {
+                console.error("Error loading JSON:", error);
+                map.setView([44.227778, 12.033056], 13); // Default view if error
+            });
+    </script>
+</body>
+</html>
