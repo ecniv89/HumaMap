@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Geolocation with Time and File Saving</title>
+</head>
+<body>
+
+  <button id="getLocation">Get Location</button>
+  <p id="status"></p>
+
+  <script>
+    const getLocationButton = document.getElementById('getLocation');
+    const statusElement = document.getElementById('status');
+
+    getLocationButton.addEventListener('click', () => {
+      if (navigator.geolocation) {
+        statusElement.textContent = 'Locating…';
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const latitude = position.coords.latitude;
+            const longitude = position.coords.longitude;
+            const timestamp = Date.now(); // Get current timestamp in milliseconds
+
+            // Create a JSON object
+            const locationData = {
+              latitude: latitude,
+              longitude: longitude,
+              timestamp: timestamp
+            };
+
+            // Convert the JSON object to a string
+            const jsonData = JSON.stringify(locationData);
+
+            // Save the data to a file (using the Fetch API)
+            fetch('save_location.php', { 
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: jsonData
+            })
+            .then(response => {
+              if (response.ok) {
+                statusElement.textContent = `Location saved successfully!`;
+              } else {
+                statusElement.textContent = `Error saving location.`;
+              }
+            })
+            .catch(error => {
+              statusElement.textContent = `Error: ${error}`;
+            });
+
+          },
+          (error) => {
+            statusElement.textContent = `Error: ${error.code} - ${error.message}`;
+          }
+        );
+      } else {
+        statusElement.textContent = 'Geolocation is not supported by your browser.';
+      }
+    });
+  </script>
+
+</body>
+</html>
